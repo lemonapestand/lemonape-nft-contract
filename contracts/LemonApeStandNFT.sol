@@ -10,6 +10,8 @@ error MintedOut();
 error MissingPerviousStand();
 /// @notice Thrown when the dutch auction phase has not yet started, or has already ended.
 error MintNotStarted();
+/// @notice Thrown when the upgrade phase has not yet started
+error UpgradeNotStarted();
 /// @notice Thrown when the user has already minted two LemonApe Stands in the dutch auction.
 error MintingTooMany();
 /// @notice Thrown when the value of the transaction is not enough for the current dutch auction or mintlist price.
@@ -203,16 +205,16 @@ contract LemonApeStandNFT is ERC721, Ownable {
     uint constant public provenanceHash = 0x9912e067bd3802c3b007ce40b6c125160d2ccb5352d199e20c092fdc17af8057;
 
     /// @dev Sole receiver of collected contract $LAS
-    address constant stakingContract = 0x000000000000000000000000000000000000dEaD;
+    address public stakingContract = 0x000000000000000000000000000000000000dEaD;
 
     /// @dev Address of $LAS to mint Lemon Stands
-    address private lasToken = 0x84c071CbFa571Af3c6c966f80530867D0d407F6E;
+    address public lasToken = 0x84c071CbFa571Af3c6c966f80530867D0d407F6E;
 
     /// @dev Address of $POTION to mint higher tier stands
-    address private potionToken = 0x980693AbB2D6A92Bc67e95C9c646d24275D8236d;
+    address public potionToken = 0x980693AbB2D6A92Bc67e95C9c646d24275D8236d;
 
     /// @dev 5000 total nfts can ever be made
-    uint constant mintSupply = 425;
+    uint constant mintSupply = 435;
 
     /// @dev The offsets are the tokenIds that the corresponding evolution stage will begin minting at.
     uint constant grapeStandOffset = 300;
@@ -224,7 +226,7 @@ contract LemonApeStandNFT is ERC721, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev The next tokenID to be minted for each of the stand stages
-    uint gen0_LemonStandSupply = 300;
+    uint lemonStandSupply = 300;
     uint grapeStandSupply = 100;
     uint dragonStandSupply = 25;
     uint fourTwentyStandSupply = 10;
@@ -233,18 +235,16 @@ contract LemonApeStandNFT is ERC721, Ownable {
                             MINT STORAGE
     //////////////////////////////////////////////////////////////*/
     /// @notice The timestamp the minting for Lemon Stands started
-    uint256 public mintStartTime;
+    bool public canStartMint;
+    bool public canUpgradeStand;
 
     /// @notice The timestamp of the last time a Lemon Stand was minted
     uint256 public lastTimeMinted;
 
-    /// @notice The current generation mint phase
-    bool public isGen0Mint;
-
     /// @notice Starting price of the Lemon Stand in $LAS (1,000 $LAS)
     uint256 constant public startPrice = 1000 * 10**18;
 
-    uint256 public mintLimit = 2;
+    uint256 public mintLimit = 3;
 
     /*///////////////////////////////////////////////////////////////
                             METADATA STORAGE
@@ -264,14 +264,26 @@ contract LemonApeStandNFT is ERC721, Ownable {
             totalSupply += dropLemonStands.length;
             for (uint256 i = 0; i < dropLemonStands.length; i++) {
                 ownerOf[i] = dropLemonStands[i];
-                balanceOf[msg.sender] = 1;
-                emit Transfer(address(0), msg.sender, i);
+                balanceOf[dropLemonStands[i]] = 1;
+                emit Transfer(address(0), dropLemonStands[i], i);
             }
         }
     }
 
     function setMintLimit(uint256 _mintLimit) public onlyOwner {
         mintLimit = _mintLimit;
+    }
+
+    function enableMint() public onlyOwner {
+        canStartMint = true;
+    }
+
+    function enableUpgrade() public onlyOwner {
+        canUpgradeStand = true;
+    }
+
+    function updateStakingContract(address _stakingContract) public onlyOwner {
+        stakingContract = _stakingContract;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -295,23 +307,29 @@ contract LemonApeStandNFT is ERC721, Ownable {
     /// @notice Calculates the mint price with the accumulated rate deduction since the mint's started. Every hour there is no mint the price goes down 100 tokens. After every mint the price goes up 100 tokens.
     /// @return The mint price at the current time, or 0 if the deductions are greater than the mint's start price.
     function getCurrentTokenPrice() private view returns (uint) {
-        uint priceReduction = ((block.timestamp - lastTimeMinted) / 1 hours) * 100 * 10**18;
-        return currentLemonStandPrice >= priceReduction ? (currentLemonStandPrice - priceReduction) :  100 * 10**18;
+        uint priceReduction = ((block.timestamp - lastTimeMinted) / 1 hours) * 25 * 10**18;
+        return currentLemonStandPrice >= priceReduction ? (currentLemonStandPrice - priceReduction) :  25 * 10**18;
     }
 
     /// @notice Purchases a LemonApeStand NFT in the reverse-dutch auction
     /// @param amountToMint the amount of NFTs to mint in one transcation.
     function mint(uint256 amountToMint) public {
-        if(block.timestamp < mintStartTime) revert MintNotStarted();
+        if(canStartMint) revert MintNotStarted();
         uint price = getCurrentTokenPrice();
         if(IERC20(lasToken).balanceOf(msg.sender) < price * amountToMint) revert ValueTooLow();
-        if(balanceOf[msg.sender] + amountToMint > amountToMint) revert MintingTooMany();
-        if(totalSupply + amountToMint > mintSupply) revert MintedOut();
-
+        if(amountToMint > mintLimit) revert MintingTooMany();
+        if(totalSupply + amountToMint > lemonStandSupply) revert MintedOut();
+        //to save gas we calcualte the amount of $LAS token needed to mint the amount of NFTs a user has selected
+        IERC20(lasToken).transferFrom(msg.sender, stakingContract, price * amountToMint);
         for (uint256 i = 0; i < amountToMint; i++) {
             uint256 mintIndex = totalSupply;
             _mint(msg.sender, mintIndex);
-        }        
+            unchecked {
+                lemonStandSupply++;
+            }
+        }
+        //to save gas we calcualte the currentLemonStandPrice after the minting loop
+        currentLemonStandPrice += amountToMint * 25 * 10**18;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -322,7 +340,6 @@ contract LemonApeStandNFT is ERC721, Ownable {
         require(to != address(0), "INVALID_RECIPIENT");
         require(ownerOf[id] == address(0), "ALREADY_MINTED");
 
-        IERC20(lasToken).transferFrom(msg.sender, stakingContract, currentLemonStandPrice);
         // Counter overflow is incredibly unrealistic.
         unchecked {
             totalSupply++;
@@ -331,7 +348,6 @@ contract LemonApeStandNFT is ERC721, Ownable {
         ownerOf[id] = to;
 
         emit Transfer(address(0), to, id);
-        currentLemonStandPrice += 100 * 10**18;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -342,7 +358,7 @@ contract LemonApeStandNFT is ERC721, Ownable {
     /// @param receiver Receiver of the upgraded LemonApe Stand
     /// @param standIdToUpgrade The upgrade (2-4) that the LemonApeStand NFT is undergoing
     function mintUpgradedStand(address receiver, uint standIdToUpgrade) public {
-        if(block.timestamp < mintStartTime) revert MintNotStarted();
+        if(canUpgradeStand) revert UpgradeNotStarted();
         uint upgradeToStand;
         if(standIdToUpgrade <= 300){
             upgradeToStand = 2;
