@@ -192,7 +192,7 @@ interface ERC721TokenReceiver {
 
 /// @title Generation 0 and 1 LemonApeStand NFTs
 // contract LemonApeStandNFT is ERC721, Ownable {
-contract MyNFT is ERC721, Ownable {
+contract LemonApeStandNFT is ERC721, Ownable {
     using Strings for uint256;
 
     /*///////////////////////////////////////////////////////////////
