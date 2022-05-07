@@ -29,7 +29,7 @@ interface IERC20 {
 
 /// @title Generation 0 and 1 LemonApeStand NFTs
 // contract LemonApeStandNFT is ERC721, Ownable {
-contract POLYNFT is ERC721Enumerable, Ownable {
+contract LemonApeStandNFT is ERC721Enumerable, Ownable {
     using Strings for uint256;
 
     /*///////////////////////////////////////////////////////////////
@@ -39,20 +39,20 @@ contract POLYNFT is ERC721Enumerable, Ownable {
     /// @dev Determines the order of the species for each tokenId, mechanism for choosing starting index explained post mint, explanation hash: acb427e920bde46de95103f14b8e57798a603abcf87ff9d4163e5f61c6a56881.
     uint constant public provenanceHash = 0x9912e067bd3802c3b007ce40b6c125160d2ccb5352d199e20c092fdc17af8057;
 
-    /// @dev Sole receiver of collected contract $LAS
-    address public stakingContract = 0x000000000000000000000000000000000000dEaD;
+    /// @dev Sole receiver of collected contract $LAS - dev wallet until staking contract live. Dev wallet will move tokens to staking
+    address public stakingContract = 0x73199233184A4F01CCcbB30f31989f8e6e9cf34E;
 
     /// @dev Address of $LAS to mint Lemon Stands
-    address public lasToken = 0xd9145CCE52D386f254917e481eB44e9943F39138;
+    address public lasToken = 0x84c071CbFa571Af3c6c966f80530867D0d407F6E;
 
     /// @dev Address of $POTION to mint higher tier stands
-    address public potionToken = 0xd9145CCE52D386f254917e481eB44e9943F39138;
+    address public potionToken = 0x980693AbB2D6A92Bc67e95C9c646d24275D8236d;
 
     /// @dev 435 total nfts can ever be made
-    uint constant lemonStandTotalSupply = 30;
-    uint constant grapeStandTotalSupply = 10;
-    uint constant dragonStandTotalSupply = 5;
-    uint constant fourTwentyStandTotalSupply = 2;
+    uint constant lemonStandTotalSupply = 300;
+    uint constant grapeStandTotalSupply = 100;
+    uint constant dragonStandTotalSupply = 25;
+    uint constant fourTwentyStandTotalSupply = 10;
     uint constant mintSupply = lemonStandTotalSupply + grapeStandTotalSupply + dragonStandTotalSupply + fourTwentyStandTotalSupply;
     uint256 public currentLemonStandPrice = 1000 * 10**18;
 
@@ -81,7 +81,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
 
     /// @notice The timestamp of the last time a Lemon Stand was minted
     uint256 public lastTimeMinted;
-    uint256 public reductionTime = 1 minutes;
+    uint256 public reductionTime = 1 hours;
 
     /// @notice Starting price of the Lemon Stand in $LAS (1,000 $LAS)
     uint256 constant public startPrice = 1000 * 10**18;
@@ -99,8 +99,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deploys the contract, airdropping to presalers.
-    // constructor(string memory _baseURI) ERC721("LEMONAPESTAND NFT", "LASNFT") {
-    constructor(string memory _baseURI, address[] memory dropLemonStands) ERC721("POLYNFT", "POLYNFT") {
+    constructor(string memory _baseURI, address[] memory dropLemonStands) ERC721("LEMONAPESTAND NFT", "LASNFT") {
         baseURI = _baseURI;
         unchecked {
             for (uint256 i = 0; i < dropLemonStands.length; i++) {
