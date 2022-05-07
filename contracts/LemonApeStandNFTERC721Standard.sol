@@ -48,14 +48,19 @@ contract POLYNFT is ERC721Enumerable, Ownable {
     /// @dev Address of $POTION to mint higher tier stands
     address public potionToken = 0xd9145CCE52D386f254917e481eB44e9943F39138;
 
-    /// @dev 5000 total nfts can ever be made
-    uint constant mintSupply = 435;
+    /// @dev 435 total nfts can ever be made
+    uint constant lemonStandTotalSupply = 30;
+    uint constant grapeStandTotalSupply = 10;
+    uint constant dragonStandTotalSupply = 5;
+    uint constant fourTwentyStandTotalSupply = 2;
+    uint constant mintSupply = lemonStandTotalSupply + grapeStandTotalSupply + dragonStandTotalSupply + fourTwentyStandTotalSupply;
     uint256 public currentLemonStandPrice = 1000 * 10**18;
 
     /// @dev The offsets are the tokenIds that the corresponding evolution stage will begin minting at.
-    uint constant grapeStandOffset = 300;
-    uint constant dragonStandOffset = grapeStandOffset + 100;
-    uint constant fourTwentyStandOffset = dragonStandOffset + 25;
+
+    uint constant grapeStandOffset = lemonStandTotalSupply;
+    uint constant dragonStandOffset = grapeStandOffset + grapeStandTotalSupply;
+    uint constant fourTwentyStandOffset = dragonStandOffset + dragonStandTotalSupply;
 
     /*///////////////////////////////////////////////////////////////
                         UPGRADE STORAGE
@@ -154,7 +159,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
         uint price = getCurrentTokenPrice();
         if(IERC20(lasToken).balanceOf(msg.sender) < price * amountToMint) revert ValueTooLow();
         if(amountToMint > mintLimit) revert MintingTooMany();
-        if(totalSupply() + amountToMint > grapeStandOffset) revert MintedOut();
+        if(totalSupply() + amountToMint > lemonStandTotalSupply) revert MintedOut();
         //to save gas we calcualte the amount of $LAS token needed to mint the amount of NFTs a user has selected
         IERC20(lasToken).transferFrom(msg.sender, stakingContract, price * amountToMint);
         for (uint256 i = 0; i < amountToMint; i++) {
@@ -178,18 +183,18 @@ contract POLYNFT is ERC721Enumerable, Ownable {
     function mintUpgradedStand(address receiver, uint standIdToUpgrade) public {
         if(!canUpgradeStand) revert UpgradeNotStarted();
         uint upgradeToStand;
-        if(standIdToUpgrade <= 300){
+        if(standIdToUpgrade <= lemonStandTotalSupply - 1){
             upgradeToStand = 2;
-        } else if(standIdToUpgrade <= 400){
+        } else if(standIdToUpgrade <= lemonStandTotalSupply + grapeStandTotalSupply - 1){
             upgradeToStand = 3;
-        } else if(standIdToUpgrade <= 425){
+        } else if(standIdToUpgrade <= lemonStandTotalSupply + grapeStandTotalSupply + dragonStandTotalSupply - 1){
             upgradeToStand = 4;
         } else {
             revert UnknownUpgrade();
         }
 
         if (upgradeToStand == 2) {
-            if(grapeStandSupply >= 100) revert MintedOut();
+            if(grapeStandSupply >= grapeStandTotalSupply) revert MintedOut();
             if(IERC20(potionToken).balanceOf(msg.sender) < 1 * 10**18) revert ValueTooLow();
             if(!isExistVersionOfNFT(receiver, 1)) revert MissingPreviousNFT();
             IERC20(potionToken).transferFrom(msg.sender, stakingContract, 1 * 10**18);
@@ -198,7 +203,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
                 grapeStandSupply++;
             }
         } else if (upgradeToStand == 3) {
-            if(dragonStandSupply >= 25) revert MintedOut();
+            if(dragonStandSupply >= dragonStandTotalSupply) revert MintedOut();
             if(IERC20(potionToken).balanceOf(msg.sender) < 2 * 10**18) revert ValueTooLow();
             if(!isExistVersionOfNFT(receiver, 2)) revert MissingPreviousNFT();
             IERC20(potionToken).transferFrom(msg.sender, stakingContract, 2 * 10**18);
@@ -207,7 +212,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
                 dragonStandSupply++;
             }
         } else if (upgradeToStand == 4) {
-            if(fourTwentyStandSupply >= 10) revert MintedOut();
+            if(fourTwentyStandSupply >= fourTwentyStandTotalSupply) revert MintedOut();
             if(IERC20(potionToken).balanceOf(msg.sender) < 3 * 10**18) revert ValueTooLow();
             if(!isExistVersionOfNFT(receiver, 3)) revert MissingPreviousNFT();
             IERC20(potionToken).transferFrom(msg.sender, stakingContract, 3 * 10**18);
@@ -227,20 +232,20 @@ contract POLYNFT is ERC721Enumerable, Ownable {
     /// @param id Id of the NFT
     /// @return version of the NFT
 
-    function getVersionFromNFTId(uint id) public view returns (uint version) 
+    function getVersionFromNFTId(uint id) public pure returns (uint version) 
     {
 
-        if(id<=grapeStandOffset){
+        if(id<=lemonStandTotalSupply - 1){
             return 1;
         }
-        else if(id<=dragonStandOffset){
+        else if(id<=lemonStandTotalSupply + grapeStandTotalSupply - 1){
             return 2;
         }
-        else if(id<=fourTwentyStandOffset)
+        else if(id<=lemonStandTotalSupply + grapeStandTotalSupply + dragonStandTotalSupply - 1)
         {
             return 3;
         }
-        else if(id<=fourTwentyStandOffset+fourTwentyStandSupply){
+        else if(id<=lemonStandTotalSupply + grapeStandTotalSupply + dragonStandTotalSupply + fourTwentyStandTotalSupply - 1){
             return 4;
         }
         else{
