@@ -81,6 +81,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
 
     /// @notice The timestamp of the last time a Lemon Stand was minted
     uint256 public lastTimeMinted;
+    uint256 public reductionTime = 1 minutes;
 
     /// @notice Starting price of the Lemon Stand in $LAS (1,000 $LAS)
     uint256 constant public startPrice = 1000 * 10**18;
@@ -117,6 +118,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
 
     function enableMint() public onlyOwner {
         canStartMint = true;
+        lastTimeMinted = block.timestamp;
     }
 
     function enableUpgrade() public onlyOwner {
@@ -148,7 +150,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
     /// @notice Calculates the mint price with the accumulated rate deduction since the mint's started. Every hour there is no mint the price goes down 100 tokens. After every mint the price goes up 100 tokens.
     /// @return The mint price at the current time, or 0 if the deductions are greater than the mint's start price.
     function getCurrentTokenPrice() public view returns (uint) {
-        uint priceReduction = ((block.timestamp - lastTimeMinted) / 1 hours) * 25 * 10**18;
+        uint priceReduction = ((block.timestamp - lastTimeMinted) / reductionTime) * 25 * 10**18;
         return currentLemonStandPrice >= priceReduction ? (currentLemonStandPrice - priceReduction) :  25 * 10**18;
     }
 
@@ -170,6 +172,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
             }
         }
         //to save gas we calcualte the currentLemonStandPrice after the minting loop
+        lastTimeMinted = block.timestamp;
         currentLemonStandPrice += amountToMint * 25 * 10**18;
     }
 
