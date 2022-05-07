@@ -1,8 +1,6 @@
 pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 //SPDX-License-Identifier: MIT
 
@@ -45,14 +43,14 @@ contract POLYNFT is ERC721Enumerable, Ownable {
     address public stakingContract = 0x000000000000000000000000000000000000dEaD;
 
     /// @dev Address of $LAS to mint Lemon Stands
-    address public lasToken = 0x000000000000000000000000000000000000dEaD;
+    address public lasToken = 0xd9145CCE52D386f254917e481eB44e9943F39138;
 
     /// @dev Address of $POTION to mint higher tier stands
-    address public potionToken = 0x000000000000000000000000000000000000dEaD;
+    address public potionToken = 0xd9145CCE52D386f254917e481eB44e9943F39138;
 
     /// @dev 5000 total nfts can ever be made
     uint constant mintSupply = 435;
-    uint256 public currentLemonStandPrice;
+    uint256 public currentLemonStandPrice = 1000 * 10**18;
 
     /// @dev The offsets are the tokenIds that the corresponding evolution stage will begin minting at.
     uint constant grapeStandOffset = 300;
@@ -96,7 +94,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
 
     /// @notice Deploys the contract, airdropping to presalers.
     // constructor(string memory _baseURI) ERC721("LEMONAPESTAND NFT", "LASNFT") {
-    constructor(string memory _baseURI, address[] memory dropLemonStands) ERC721("LEMONAPESTAND NFT", "LASNFT") {
+    constructor(string memory _baseURI, address[] memory dropLemonStands) ERC721("POLYNFT", "POLYNFT") {
         baseURI = _baseURI;
         unchecked {
             for (uint256 i = 0; i < dropLemonStands.length; i++) {
@@ -144,7 +142,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
 
     /// @notice Calculates the mint price with the accumulated rate deduction since the mint's started. Every hour there is no mint the price goes down 100 tokens. After every mint the price goes up 100 tokens.
     /// @return The mint price at the current time, or 0 if the deductions are greater than the mint's start price.
-    function getCurrentTokenPrice() private view returns (uint) {
+    function getCurrentTokenPrice() public view returns (uint) {
         uint priceReduction = ((block.timestamp - lastTimeMinted) / 1 hours) * 25 * 10**18;
         return currentLemonStandPrice >= priceReduction ? (currentLemonStandPrice - priceReduction) :  25 * 10**18;
     }
@@ -152,11 +150,11 @@ contract POLYNFT is ERC721Enumerable, Ownable {
     /// @notice Purchases a LemonApeStand NFT in the reverse-dutch auction
     /// @param amountToMint the amount of NFTs to mint in one transcation.
     function mint(uint256 amountToMint) public {
-        if(canStartMint) revert MintNotStarted();
+        if(!canStartMint) revert MintNotStarted();
         uint price = getCurrentTokenPrice();
         if(IERC20(lasToken).balanceOf(msg.sender) < price * amountToMint) revert ValueTooLow();
         if(amountToMint > mintLimit) revert MintingTooMany();
-        if(totalSupply() + amountToMint > lemonStandSupply) revert MintedOut();
+        if(totalSupply() + amountToMint > grapeStandOffset) revert MintedOut();
         //to save gas we calcualte the amount of $LAS token needed to mint the amount of NFTs a user has selected
         IERC20(lasToken).transferFrom(msg.sender, stakingContract, price * amountToMint);
         for (uint256 i = 0; i < amountToMint; i++) {
@@ -178,7 +176,7 @@ contract POLYNFT is ERC721Enumerable, Ownable {
     /// @param receiver Receiver of the upgraded LemonApe Stand
     /// @param standIdToUpgrade The upgrade (2-4) that the LemonApeStand NFT is undergoing
     function mintUpgradedStand(address receiver, uint standIdToUpgrade) public {
-        if(canUpgradeStand) revert UpgradeNotStarted();
+        if(!canUpgradeStand) revert UpgradeNotStarted();
         uint upgradeToStand;
         if(standIdToUpgrade <= 300){
             upgradeToStand = 2;
